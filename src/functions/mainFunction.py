@@ -1,6 +1,34 @@
 from src.classes.TaskManager import TaskManager
 from src.classes.Task import Task
 
+def validator(prompt, expected_type=int, format=None):
+    while True:
+        value = input(prompt)
+        try:
+            if expected_type == int:
+                return int(value)
+            elif expected_type == str:
+                if format == "date":
+                    parts = value.split('-')
+                    if len(parts) == 3 and all(part.isdigit() for part in parts):
+                        return value
+                
+                elif format == "priority":
+                    if value.lower() in ["низкий", "средний", "высокий"]:
+                        return value.capitalize()
+                
+                else:
+                    if value.strip():
+                        return value
+                
+            print(f"Неверный формат. Ожидается: {expected_type.__name__}")
+            if format:
+                print(f"В формате: {format}")
+                
+        except ValueError:
+            print(f"Невозможно преобразовать '{value}' в {expected_type.__name__}")
+
+
 def display_tasks_page(tasks, page_size=5, current_page=0):
     start_idx = current_page * page_size
     end_idx = start_idx + page_size
@@ -31,10 +59,10 @@ def main():
         print("0. Выход")
         
         choice = input("Выберите действие: ")
-        
+        # Exit
         if choice == "0":
             break
-            
+        # View tasks
         elif choice == "1":
             current_page = 0
             while True:
@@ -52,7 +80,7 @@ def main():
                     current_page -= 1
                 elif nav_choice == "0":
                     break
-                
+        # Add task
         elif choice == "2":
             title = input("Введите название задачи: ")
             description = input("Введите описание задачи: ")
@@ -66,8 +94,10 @@ def main():
             manager.save_tasks()
             print("Задача успешно добавлена!")
             
+        # Edit task
         elif choice == "3":
-            task_id = int(input("Введите ID задачи для изменения: "))
+            task_id = validator("Введите ID задачи для редактирования: ", int)
+            
             for task in manager.tasks:
                 if task.id == task_id:
                     print("\n1. Изменить название")
@@ -97,7 +127,7 @@ def main():
                     break
             else:
                 print("Задача не найдена!")
-                
+        # Delete task by ID
         elif choice == "4":
             task_id = int(input("Введите ID задачи для удаления: "))
             for task in manager.tasks[:]:
@@ -108,7 +138,8 @@ def main():
                     break
             else:
                 print("Задача не найдена!")
-                
+            
+        # Search tasks by title, category, or status
         elif choice == "5":
             print("\n1. Поиск по названию")
             print("2. Поиск по категории")
