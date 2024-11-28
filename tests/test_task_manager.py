@@ -6,80 +6,107 @@ from src.classes.Task import Task
 def task_manager():
     manager = TaskManager("test_tasks.json")
     yield manager
-    # Cleanup after tests
-    manager.tasks.clear()
+    # Cleanup
+    manager.delete_task("Test Category", "category")
     manager.save_tasks()
 
 def test_add_task(task_manager):
     task = Task(
         title="Test Task",
         description="Test Description",
-        category="Test",
+        category="Test Category",
         due_date="2024-12-31",
         priority="Высокий"
     )
-    task.id = task_manager.get_next_id()
-    task_manager.tasks.append(task)
+    task_manager.add_task(task)
     
-    assert len(task_manager.tasks) == 1
-    assert task_manager.tasks[0].title == "Test Task"
-    assert task_manager.tasks[0].status == "Не выполнена"
+    found_task = task_manager.get_tasks('id', task.id)
+    assert found_task is not None
+    assert found_task.title == "Test Task"
 
-def test_complete_task(task_manager):
-    # Add a task first
+def test_edit_task(task_manager):
+    # First add a task
     task = Task(
-        title="Complete Test",
-        description="Test Description",
-        category="Test",
+        title="Original Title",
+        description="Original Description",
+        category="Test Category",
         due_date="2024-12-31",
         priority="Высокий"
     )
-    task.id = task_manager.get_next_id()
-    task_manager.tasks.append(task)
+    task_manager.add_task(task)
     
-    # Complete the task
-    task_manager.complete_task(task.id)
-    assert task_manager.tasks[0].status == "Выполнена"
-
-def test_search_task(task_manager):
-    # Add test tasks
-    task1 = Task(
-        title="Search Test 1",
-        description="Test Description",
-        category="Test",
+    # Edit the task
+    edited_task = Task(
+        title="Updated Title",
+        description="Updated Description",
+        category="Test Category",
         due_date="2024-12-31",
-        priority="Высокий"
+        priority="Низкий"
     )
-    task2 = Task(
-        title="Different Task",
-        description="Test Description",
-        category="Test",
-        due_date="2024-12-31",
-        priority="Высокий"
-    )
-    task1.id = task_manager.get_next_id()
-    task2.id = task_manager.get_next_id()
-    task_manager.tasks.extend([task1, task2])
+    edited_task.id = task.id
+    task_manager.edit_task(edited_task)
     
-    # Search for tasks
-    found_tasks = [task for task in task_manager.tasks if "Search" in task.title]
-    assert len(found_tasks) == 1
-    assert found_tasks[0].title == "Search Test 1"
+    # Verify changes
+    found_task = task_manager.get_tasks('id', task.id)
+    assert found_task.title == "Updated Title"
+    assert found_task.priority == "Низкий"
 
-def test_delete_task(task_manager):
-    # Add a task
+def test_delete_task_by_id(task_manager):
     task = Task(
         title="Delete Test",
         description="Test Description",
-        category="Test",
+        category="Test Category",
         due_date="2024-12-31",
         priority="Высокий"
     )
-    task.id = task_manager.get_next_id()
-    task_manager.tasks.append(task)
+    task_manager.add_task(task)
     
-    # Delete the task
-    initial_count = len(task_manager.tasks)
-    task_manager.delete_task(task.id)
-    assert len(task_manager.tasks) == initial_count - 1
-    assert not any(t.id == task.id for t in task_manager.tasks)
+    task_manager.delete_task(task.id, 'id')
+    found_task = task_manager.get_tasks('id', task.id)
+    assert found_task is None
+
+def test_delete_tasks_by_category(task_manager):
+    tasks = [
+        Task("Task 1", "Desc 1", "Category A", "2024-12-31", "Высокий"),
+        Task("Task 2", "Desc 2", "Category A", "2024-12-31", "Средний")
+    ]
+    for task in tasks:
+        task_manager.add_task(task)
+    
+    task_manager.delete_task("Category A", "category")
+    found_tasks = task_manager.get_tasks('category', "Category A")
+    assert len(found_tasks) == 0
+
+def test_search_tasks(task_manager):
+    task = Task(
+        title="Search Test",
+        description="Searchable Description",
+        category="Test Category",
+        due_date="2024-12-31",
+        priority="Высокий"
+    )
+    task_manager.add_task(task)
+    
+    by_title = task_manager.get_tasks('title', 'Search')
+    assert len(by_title) == 1
+    
+    by_description = task_manager.get_tasks('description', 'Searchable')
+    assert len(by_description) == 1
+    
+    by_status = task_manager.get_tasks('status', 'Не выполнена')
+    assert len(by_status) >= 1
+
+def test_get_all_tasks(task_manager):
+    initial_count = len(task_manager.get_tasks())
+    
+    new_task = Task(
+        title="New Task",
+        description="Description",
+        category="Test Category",
+        due_date="2024-12-31",
+        priority="Высокий"
+    )
+    task_manager.add_task(new_task)
+    
+    all_tasks = task_manager.get_tasks()
+    assert len(all_tasks) == initial_count + 1
