@@ -187,7 +187,7 @@ def main(file_path_to_json="db/tasks.json"):
             print("0. Вернуться в главное меню\n")
 
             search_choice = input("Выберите тип поиска: \n")
-            while search_choice not in ["1", "2", "3","4", "0"]:
+            while search_choice not in ["1", "2", "3", "4", "0"]:
                 print("ВВЕДЕН НЕ ВЕРНЫЙ НОМЕР!")
                 print("1. Поиск по названию")
                 print("2. Поиск по категории")
