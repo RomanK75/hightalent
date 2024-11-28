@@ -182,27 +182,33 @@ def main(file_path_to_json="db/tasks.json"):
             print("\n1. Поиск по названию")
             print("2. Поиск по категории")
             print("3. Поиск по статусу")
+            print("4. Поиск по ID")
             print("-" * 50)
             print("0. Вернуться в главное меню\n")
 
             search_choice = input("Выберите тип поиска: \n")
-            while search_choice not in ["1", "2", "3", "0"]:
+            while search_choice not in ["1", "2", "3","4", "0"]:
                 print("ВВЕДЕН НЕ ВЕРНЫЙ НОМЕР!")
                 print("1. Поиск по названию")
                 print("2. Поиск по категории")
                 print("3. Поиск по статусу")
+                print("4. Поиск по ID")
                 print("-" * 50)
                 print("0. Вернуться в главное меню\n")
                 search_choice = input("Выберите тип поиска: \n")
             if search_choice == "0":
                 continue
-            search_term = validator("Введите поисковый запрос: ")
-            if search_choice == "1":
-                tasks = manager.get_tasks("title", search_term)
-            elif search_choice == "2":
-                tasks = manager.get_tasks("category", search_term)
-            elif search_choice == "3":
-                tasks = manager.get_tasks("status", search_term)
+            if search_choice == "4":
+                search_term = validator("Введите ID задачи: ", int)
+                tasks = [manager.get_tasks("id", search_term)]
+            else:
+                search_term = validator("Введите поисковый запрос: ")
+                if search_choice == "1":
+                    tasks = manager.get_tasks("title", search_term)
+                elif search_choice == "2":
+                    tasks = manager.get_tasks("category", search_term)
+                elif search_choice == "3":
+                    tasks = manager.get_tasks("status", search_term)
             if tasks:
                 for task in tasks:
                     print(f"ID: {task.id}")
