@@ -1,40 +1,48 @@
 from src.classes.TaskManager import TaskManager
 from src.classes.Task import Task
+import re
+from typing import List
 
-def validator(prompt, expected_type=int, format=None):
+
+# Basic validator args (user input, expected type, format cheking)
+def validator(prompt, expected_type=str, format=None):
     while True:
         value = input(prompt)
-        try:
-            if expected_type == int:
-                return int(value)
-            elif expected_type == str:
-                if format == "date":
-                    parts = value.split('-')
-                    if len(parts) == 3 and all(part.isdigit() for part in parts):
-                        return value
-                
-                elif format == "priority":
-                    if value.lower() in ["низкий", "средний", "высокий"]:
-                        return value.capitalize()
-                
-                else:
-                    if value.strip():
-                        return value
-                
-            print(f"Неверный формат. Ожидается: {expected_type.__name__}")
-            if format:
-                print(f"В формате: {format}")
-                
-        except ValueError:
-            print(f"Невозможно преобразовать '{value}' в {expected_type.__name__}")
+        if value:
+            try:
+                if expected_type == int:
+                    return int(value)
+                elif expected_type == str:
+                    if format == "date":
+                        date_pattern = r'^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$'
+                        if re.match(date_pattern, value):
+                            return value
+                    
+                    elif format == "priority":
+                        if value.lower() in ["низкий", "средний", "высокий"]:
+                            return value.capitalize()
+                    else:
+                        if value.strip():
+                            return value
+                    
+                print(f"Неверный формат. Ожидается: {expected_type.__name__}")
+                if format:
+                    print(f"В формате: {format}")
+                    
+            except ValueError:
+                print(f"Невозможно преобразовать '{value}' в {expected_type.__name__}")
+        else:
+            print("Введите значение.")
 
-
-def display_tasks_page(tasks, page_size=5, current_page=0):
+# Pagination for task view(tasks list, *page size, page state)
+def display_tasks_page(tasks:List[Task], page_size=5, current_page=0):
     start_idx = current_page * page_size
     end_idx = start_idx + page_size
     page_tasks = tasks[start_idx:end_idx]
-    
-    print(f"\nСтраница {current_page + 1} (задачи {start_idx + 1}-{min(end_idx, len(tasks))} из {len(tasks)})")
+    if tasks:
+        print(f"\nСтраница {current_page + 1} (задачи {start_idx + 1}-{min(end_idx, len(tasks))} из {len(tasks)})")
+    else:
+        print("Нет задач по данной категории.")
     
     for task in page_tasks:
         print(f"\nID: {task.id}")
@@ -46,9 +54,9 @@ def display_tasks_page(tasks, page_size=5, current_page=0):
         print(f"Статус: {task.status}")
         print("-" * 50)
 
-
-def main():
-    manager = TaskManager()
+# Main function
+def main(file_path_to_json='db/tasks.json'):
+    manager = TaskManager(file_path_to_json)
     while True:
         print("\n====== Менеджер задач ======")
         print("1. Просмотр задач")
@@ -65,16 +73,20 @@ def main():
         # View tasks
         elif choice == "1":
             current_page = 0
+            tasks = manager.get_tasks()
+            tasks_filter = input("Введите название категории для фильтрации (или оставьте пустым для просмотра всех задач): ")
+            if (tasks_filter):
+                tasks = manager.get_tasks('category', tasks_filter)
             while True:
-                display_tasks_page(manager.tasks, current_page=current_page)
-                if len(manager.tasks) > (current_page + 1) * 5:
+                display_tasks_page(tasks, current_page=current_page)
+                if len(tasks) > (current_page + 1) * 5:
                     print("\n1 - Следующая страница")
                 if current_page > 0:
                     print("2 - Предыдущая страница")
                 print("0 - Вернуться в главное меню")
                 
                 nav_choice = input("\nВыберите действие: ")
-                if nav_choice == "1" and len(manager.tasks) > (current_page + 1) * 5:
+                if nav_choice == "1" and len(tasks) > (current_page + 1) * 5:
                     current_page += 1
                 elif nav_choice == "2" and current_page > 0:
                     current_page -= 1
@@ -82,87 +94,103 @@ def main():
                     break
         # Add task
         elif choice == "2":
-            title = input("Введите название задачи: ")
-            description = input("Введите описание задачи: ")
-            category = input("Введите категорию задачи: ")
-            due_date = input("Введите срок выполнения (YYYY-MM-DD): ")
-            priority = input("Введите приоритет (Низкий/Средний/Высокий): ")
+            title = validator("Введите название задачи: ")
+            description = validator("Введите описание задачи: ")
+            category = validator("Введите категорию задачи: ")
+            due_date = validator("Введите срок (в формате ГГГГ-ММ-ДД): ", format="date")
+            priority = validator("Введите приоритет (низкий, средний, высокий): ", format="priority")
             
             task = Task(title, description, category, due_date, priority)
-            task.id = manager.get_next_id()
-            manager.tasks.append(task)
-            manager.save_tasks()
-            print("Задача успешно добавлена!")
+            manager.add_task(task)
+            print("ЗАДАЧА УСПЕШНО ДОБАВЛЕНА!")
             
         # Edit task
         elif choice == "3":
             task_id = validator("Введите ID задачи для редактирования: ", int)
-            
-            for task in manager.tasks:
-                if task.id == task_id:
-                    print("\n1. Изменить название")
-                    print("2. Изменить описание")
-                    print("3. Изменить категорию")
-                    print("4. Изменить срок")
-                    print("5. Изменить приоритет")
-                    print("6. Отметить как выполненную")
-                    
-                    edit_choice = input("Выберите действие: ")
-                    
-                    if edit_choice == "1":
-                        task.title = input("Новое название: ")
-                    elif edit_choice == "2":
-                        task.description = input("Новое описание: ")
-                    elif edit_choice == "3":
-                        task.category = input("Новая категория: ")
-                    elif edit_choice == "4":
-                        task.due_date = input("Новый срок (YYYY-MM-DD): ")
-                    elif edit_choice == "5":
-                        task.priority = input("Новый приоритет: ")
-                    elif edit_choice == "6":
+            task = manager.get_tasks('id',task_id)
+            if task:
+                print(f"\n1. Изменить название(сейчас -> {task.title})")
+                print(f"2. Изменить описание(сейчас -> {task.description})")
+                print(f"3. Изменить категорию(сейчас -> {task.category})")
+                print(f"4. Изменить срок(сейчас -> {task.due_date})")
+                print(f"5. Изменить приоритет(сейчас -> {task.priority})")
+                print(f"6. Изменить статус выполнения(сейчас -> {task.status})")
+                print("-"*50)
+                print("0. Вернуться в главное меню\n")
+                
+                edit_choice = input("Выберите действие: ")
+                if edit_choice == "0":
+                    break
+                if edit_choice == "1":
+                    task.title = validator("Новое название: ")
+                elif edit_choice == "2":
+                    task.description = validator("Новое описание: ")
+                elif edit_choice == "3":
+                    task.category = validator("Новая категория: ")
+                elif edit_choice == "4":
+                    task.due_date = validator("Новый срок (YYYY-MM-DD): ", format="date")
+                elif edit_choice == "5":
+                    task.priority = validator("Новый приоритет: ", format="priority")
+                elif edit_choice == "6":
+                    if task.status == "Не выполнена":
                         task.status = "Выполнена"
-                    
-                    manager.save_tasks()
-                    print("Задача обновлена!")
-                    break
+                    else:
+                        task.status = "Не выполнена"
+                
+                manager.edit_task(task)
+                print(f"ЗАДАЧА {task.id} ОБНОВЛЕНА!")
             else:
-                print("Задача не найдена!")
-        # Delete task by ID
+                print(f"ЗАДАЧА {task_id} НЕ НАЙДЕНА!")
+        # Delete task by ID,NAME,CATEGORY
         elif choice == "4":
-            task_id = int(input("Введите ID задачи для удаления: "))
-            for task in manager.tasks[:]:
-                if task.id == task_id:
-                    manager.tasks.remove(task)
-                    manager.save_tasks()
-                    print("Задача удалена!")
-                    break
-            else:
-                print("Задача не найдена!")
+            delete_type = validator("Выберите тип удаления:\n1. По ID\n2. По категории\n0. Вернутся в меню\n", int)
+            if delete_type == 0:
+                break
+            elif delete_type == 1:
+                task_id = validator("Введите ID задачи для удаления: ", int)
+                manager.delete_task(task_id)
+            elif delete_type == 2:
+                task_category = validator("Введите категорию задачи для удаления: ", str)
+                manager.delete_task(task_category, 'category')
+
             
         # Search tasks by title, category, or status
         elif choice == "5":
             print("\n1. Поиск по названию")
             print("2. Поиск по категории")
             print("3. Поиск по статусу")
+            print("-"*50)
+            print("0. Вернуться в главное меню\n")
             
-            search_choice = input("Выберите тип поиска: ")
-            search_term = input("Введите поисковый запрос: ")
-            
-            found = False
-            for task in manager.tasks:
-                if (search_choice == "1" and search_term.lower() in task.title.lower()) or \
-                   (search_choice == "2" and search_term.lower() == task.category.lower()) or \
-                   (search_choice == "3" and search_term.lower() == task.status.lower()):
-                    print(f"\nID: {task.id}")
+            search_choice = input("Выберите тип поиска: \n")
+            while search_choice not in ["1", "2", "3", "0"]:
+                print("ВВЕДЕН НЕ ВЕРНЫЙ НОМЕР!")
+                print("1. Поиск по названию")
+                print("2. Поиск по категории")
+                print("3. Поиск по статусу")
+                print("-"*50)
+                print("0. Вернуться в главное меню\n")
+                search_choice = input("Выберите тип поиска: \n")          
+            if search_choice == "0":
+                continue
+            search_term = validator("Введите поисковый запрос: ")
+            if search_choice == "1":
+                tasks = manager.get_tasks('title', search_term)
+            elif search_choice == "2":
+                tasks = manager.get_tasks('category', search_term)
+            elif search_choice == "3":
+                tasks = manager.get_tasks('status', search_term)
+            if tasks:
+                for task in tasks:
+                    print(f"ID: {task.id}")
                     print(f"Название: {task.title}")
                     print(f"Описание: {task.description}")
                     print(f"Категория: {task.category}")
                     print(f"Срок: {task.due_date}")
                     print(f"Приоритет: {task.priority}")
                     print(f"Статус: {task.status}")
-                    found = True
-                    
-            if not found:
+                    print("-"*50)
+            else:
                 print("Задачи не найдены!")
         
         else:

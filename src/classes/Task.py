@@ -4,7 +4,7 @@ from typing import Dict
 class Task:
     def __init__(self, title: str, description: str, category: str, 
                  due_date: str, priority: str):
-        self.id = None
+        self.id:int = 0
         self.title = title
         self.description = description
         self.category = category
